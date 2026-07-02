@@ -43,9 +43,19 @@ print("FastAPI application created.")
 
 print("Initializing SHLAgent...")
 
-agent = SHLAgent()
+try:
+    agent = SHLAgent()
+    print("SHLAgent initialized successfully.")
 
-print("SHLAgent initialized successfully.")
+except Exception as e:
+    import traceback
+
+    print("\n========== STARTUP ERROR ==========")
+    print(f"Error: {e}")
+    traceback.print_exc()
+    print("===================================\n")
+
+    raise
 
 # ------------------------------------
 # Root Endpoint
