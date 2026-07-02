@@ -18,26 +18,46 @@ class HybridRetriever:
         # -----------------------------
         # Load catalog
         # -----------------------------
+        print("Loading catalog...")
+
         with open(self.catalog_path, "r", encoding="utf-8") as f:
             self.catalog = json.load(f)
+
+        print(f"Loaded {len(self.catalog)} assessments.")
 
         # -----------------------------
         # Load BM25
         # -----------------------------
+        print("Loading BM25 index...")
+
         with open(self.bm25_path, "rb") as f:
             self.bm25 = pickle.load(f)
+
+        print("BM25 loaded.")
 
         # -----------------------------
         # Load FAISS
         # -----------------------------
+        print("Loading FAISS index...")
+
         self.index = faiss.read_index(str(self.faiss_path))
+
+        print("FAISS loaded.")
 
         # -----------------------------
         # Load embedding model
         # -----------------------------
-        self.model = SentenceTransformer("BAAI/bge-small-en-v1.5")
+        print("Loading SentenceTransformer model...")
 
-        print(f"HybridRetriever initialized with {len(self.catalog)} assessments.")
+        self.model = SentenceTransformer(
+            "BAAI/bge-small-en-v1.5"
+        )
+
+        print("SentenceTransformer loaded.")
+
+        print(
+            f"HybridRetriever initialized with {len(self.catalog)} assessments."
+        )
 
     def search(self, query: str, top_k: int = 10):
         """
@@ -66,7 +86,10 @@ class HybridRetriever:
             normalize_embeddings=True
         )
 
-        _, faiss_indices = self.index.search(query_embedding, 50)
+        _, faiss_indices = self.index.search(
+            query_embedding,
+            50
+        )
 
         # -----------------------------
         # Reciprocal Rank Fusion
@@ -74,13 +97,17 @@ class HybridRetriever:
         rrf_scores = {}
         k = 60
 
-        # BM25 contribution
         for rank, (idx, _) in enumerate(bm25_ranked):
-            rrf_scores[idx] = rrf_scores.get(idx, 0) + 1 / (k + rank + 1)
+            rrf_scores[idx] = (
+                rrf_scores.get(idx, 0)
+                + 1 / (k + rank + 1)
+            )
 
-        # FAISS contribution
         for rank, idx in enumerate(faiss_indices[0]):
-            rrf_scores[idx] = rrf_scores.get(idx, 0) + 1 / (k + rank + 1)
+            rrf_scores[idx] = (
+                rrf_scores.get(idx, 0)
+                + 1 / (k + rank + 1)
+            )
 
         # -----------------------------
         # Final Ranking
@@ -116,15 +143,11 @@ class HybridRetriever:
     def search_by_name(self, name: str):
         """
         Find the assessment whose name best matches the given name.
-        Used for comparison queries like:
-        - Compare OPQ and Verify Interactive
-        - Java 8 vs Core Java
         """
 
         if not name:
             return None
 
-        # First: exact / partial name match
         name_lower = name.lower()
 
         for item in self.catalog:
@@ -143,7 +166,6 @@ class HybridRetriever:
                     "score": 1.0
                 }
 
-        # Fallback to hybrid retrieval
         results = self.search(name, top_k=1)
 
         if results:
